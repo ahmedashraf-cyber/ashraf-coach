@@ -514,7 +514,7 @@ function startChat() {
   history = loadJSON(LS.chat(session.batch + "_" + session.name), []);
   $("msgsInner").innerHTML = "";
   if (history.length === 0) {
-    const hello = "أهلاً " + session.name.split(" ")[0] + "! 👋 I'm ASHRAF, your AI training coach.\n\nAsk me anything about football data collection, tagging, modules, or your training — in Arabic or English. Tap the mic to talk to me, and I can talk back too.";
+    const hello = "أهلاً يا " + session.name.split(" ")[0] + "! 👋\n\nI'm ASHRAF, your AI training coach. Ask me anything about football data collection, tagging, modules, or your training — in Arabic or English.\n\nTap the mic 🎤 to talk to me, and I can talk back too.";
     history.push({ role: "assistant", content: hello, t: Date.now() });
     persist();
   }
