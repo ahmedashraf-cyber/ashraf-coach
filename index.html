@@ -708,13 +708,23 @@ function startListening() {
   rec = new SR();
   rec.lang = prefs.micLang;
   rec.interimResults = true;
-  rec.continuous = false;
+  // continuous keeps the mic open through natural pauses — without it Chrome
+  // cuts the recording at the first short silence, mid-question.
+  rec.continuous = true;
+  const SILENCE_MS = 3000; // stop + send after this much silence following speech
   let finalText = "";
+  let silenceTimer = null;
+  const armSilence = () => {
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => { try { rec.stop(); } catch(e){} }, SILENCE_MS);
+  };
   rec.onstart = () => {
     listening = true; voiceSend = true;
     $("btnMic").classList.add("listening");
     $("listenHint").classList.add("show");
-    $("listenText").textContent = prefs.micLang === "ar-EG" ? "أنا سامعك… اتكلم" : "Listening… speak now";
+    $("listenText").textContent = prefs.micLang === "ar-EG"
+      ? "أنا سامعك… خد وقتك. سكوت ٣ ثواني أو دوسة تانية على المايك = إرسال"
+      : "Listening… take your time. 3s of silence (or tap the mic again) sends";
   };
   rec.onresult = ev => {
     let interim = "";
@@ -724,13 +734,16 @@ function startListening() {
     }
     $("inMsg").value = (finalText + interim).trim();
     autoGrow(); updateSendBtn();
+    armSilence();
   };
   rec.onerror = ev => {
+    clearTimeout(silenceTimer);
     endListenUI();
     if (ev.error === "not-allowed" || ev.error === "service-not-allowed")
       addError("Microphone permission was blocked. Allow the mic in your browser settings and try again.");
   };
   rec.onend = () => {
+    clearTimeout(silenceTimer);
     endListenUI();
     if (finalText.trim()) { $("inMsg").value = finalText.trim(); send(true); }
   };
