@@ -750,17 +750,45 @@ function cleanForSpeech(s) {
     .replace(/\s+/g, " ").trim();
 }
 let warnedNoArVoice = false;
-function speak(text) {
-  if (!("speechSynthesis" in window)) return;
-  stopSpeaking();
-  const clean = cleanForSpeech(text);
-  if (!clean) return;
-  const segs = splitSegments(clean);
-  if (!segs.length) return;
+let cloudAudio = null;
+let cloudArabicDown = false; // set true if Groq TTS fails; fall back to local voice
+
+/* Arabic speech via Groq PlayAI TTS — works on Chrome with no installs */
+async function speakCloudArabic(text) {
+  const key = groqKey();
+  if (!key) return false;
+  try {
+    $("topOrb").classList.add("speaking");
+    const res = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify({
+        model: "playai-tts-arabic",
+        voice: "Ahmad-PlayAI",
+        input: text.slice(0, 1800),
+        response_format: "wav"
+      })
+    });
+    if (!res.ok) throw new Error("TTS HTTP " + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    cloudAudio = new Audio(url);
+    cloudAudio.onended = () => { $("topOrb").classList.remove("speaking"); URL.revokeObjectURL(url); };
+    cloudAudio.onerror = () => { $("topOrb").classList.remove("speaking"); URL.revokeObjectURL(url); };
+    await cloudAudio.play();
+    return true;
+  } catch (e) {
+    $("topOrb").classList.remove("speaking");
+    cloudArabicDown = true;
+    return false;
+  }
+}
+
+function speakLocal(segs) {
   const needsAr = segs.some(s => s.ar);
   if (needsAr && !pickVoice(true) && !warnedNoArVoice) {
     warnedNoArVoice = true;
-    addError("هذا المتصفح لا يحتوي على صوت عربي — This browser has no Arabic voice installed. For Arabic speech, open ASHRAF in Microsoft Edge, or install the Arabic language pack in Windows/phone settings.");
+    addError("هذا المتصفح لا يحتوي على صوت عربي — Arabic cloud voice is unavailable right now and this browser has no local Arabic voice. Try again in a minute.");
   }
   segs.forEach((seg, i) => {
     const u = new SpeechSynthesisUtterance(seg.text);
@@ -776,8 +804,23 @@ function speak(text) {
     speechSynthesis.speak(u);
   });
 }
+
+async function speak(text) {
+  stopSpeaking();
+  const clean = cleanForSpeech(text);
+  if (!clean) return;
+  const hasArabic = /[\u0600-\u06FF]/.test(clean);
+  if (hasArabic && !cloudArabicDown) {
+    const ok = await speakCloudArabic(clean);
+    if (ok) return;
+  }
+  if (!("speechSynthesis" in window)) return;
+  const segs = splitSegments(clean);
+  if (segs.length) speakLocal(segs);
+}
 function stopSpeaking() {
   if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (cloudAudio) { try { cloudAudio.pause(); } catch(e){} cloudAudio = null; }
   $("topOrb").classList.remove("speaking");
 }
 
