@@ -423,11 +423,12 @@ const CONFIG = {
   GROQ_MODEL: "openai/gpt-oss-120b",
   GROQ_URL: "https://api.groq.com/openai/v1/chat/completions",
   GROQ_TTS_URL: "https://api.groq.com/openai/v1/audio/speech",
-  // Optional Cloudflare Worker proxy (see worker.js + WORKER_SETUP.md in the repo).
-  // When set (e.g. "https://ashraf-coach.hudl-field.workers.dev"), chat AND Arabic
-  // TTS are routed through the worker. The Groq key then lives only as a worker
-  // secret — no key in this file or in browser localStorage.
-  WORKER_URL: "",
+  // Cloudflare Worker proxy (see WORKER_SETUP.md in the repo). Chat AND Arabic
+  // TTS are routed through the worker, which holds the Groq key as a secret and
+  // the private training knowledge base. If the worker is unreachable, the app
+  // automatically falls back to calling Groq directly (needs the local key,
+  // basic prompt without the knowledge base).
+  WORKER_URL: "https://ashraf-coach.hudl-field.workers.dev",
   // Arabic TTS model/voice pairs, tried in order until one returns audio.
   // Failures are logged to the console with the real HTTP status + body.
   // NOTE: the model requires one-time terms acceptance by the Groq org admin:
@@ -639,20 +640,39 @@ async function send(fromVoice) {
   try {
     const msgs = [{ role: "system", content: SYSTEM_PROMPT }]
       .concat(history.slice(-CONFIG.MAX_HISTORY).map(m => ({ role: m.role, content: m.content })));
-    // Through the worker when configured (key stays server-side), else direct to Groq.
-    const chatUrl = CONFIG.WORKER_URL ? CONFIG.WORKER_URL.replace(/\/+$/, "") + "/chat" : CONFIG.GROQ_URL;
-    const chatHeaders = { "Content-Type": "application/json" };
-    if (!CONFIG.WORKER_URL) chatHeaders["Authorization"] = "Bearer " + key;
-    const res = await fetch(chatUrl, {
-      method: "POST",
-      headers: chatHeaders,
-      body: JSON.stringify({
-        model: CONFIG.GROQ_MODEL,
-        messages: msgs,
-        temperature: 0.6,
-        max_tokens: CONFIG.MAX_TOKENS
-      })
+    // Worker first (knowledge base + key live server-side there); direct Groq
+    // as automatic fallback if the worker is down and a local key exists.
+    const payload = JSON.stringify({
+      model: CONFIG.GROQ_MODEL,
+      messages: msgs,
+      temperature: 0.6,
+      max_tokens: CONFIG.MAX_TOKENS
     });
+    let res = null;
+    if (CONFIG.WORKER_URL) {
+      try {
+        res = await fetch(CONFIG.WORKER_URL.replace(/\/+$/, "") + "/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload
+        });
+        if (!res.ok && res.status >= 500 && key) {
+          console.error("[ASHRAF chat] worker HTTP " + res.status + " — falling back to direct Groq");
+          res = null;
+        }
+      } catch (we) {
+        console.error("[ASHRAF chat] worker unreachable (" + (we && we.message) + ")" + (key ? " — falling back to direct Groq" : ""));
+        res = null;
+      }
+    }
+    if (!res) {
+      if (!key) throw new Error("coach backend unreachable — tell your supervisor");
+      res = await fetch(CONFIG.GROQ_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+        body: payload
+      });
+    }
     if (!res.ok) {
       const body = await res.text();
       throw new Error("HTTP " + res.status + (res.status === 401 ? " — invalid key" : res.status === 429 ? " — rate limit, try again in a minute" : "") + " " + body.slice(0, 120));
@@ -770,28 +790,36 @@ function cleanForSpeech(s) {
 }
 let warnedNoArVoice = false;
 let cloudAudio = null;
-let cloudArabicDown = false; // set true only after EVERY cloud TTS candidate fails
-let ttsArabicPick = null;    // first {model, voice} that worked — reused afterwards
+let cloudArabicDown = false; // set true only after EVERY cloud TTS attempt fails
+let ttsArabicPick = null;    // first working {url, auth, model, voice} — reused afterwards
 
-/* Arabic speech via Groq TTS (direct, or through the Cloudflare Worker when
-   CONFIG.WORKER_URL is set). Tries each CONFIG.TTS_ARABIC_CANDIDATES pair in
-   order until one returns audio. Every failure logs the real HTTP status and
-   response body to the console so it stays diagnosable. */
+/* Arabic speech via Groq TTS — through the Cloudflare Worker first (no key in
+   the browser), then direct to Groq as fallback when a local key exists.
+   Tries each CONFIG.TTS_ARABIC_CANDIDATES pair on each endpoint until one
+   returns audio. Every failure logs the real HTTP status and response body. */
 async function speakCloudArabic(text) {
-  const useWorker = !!CONFIG.WORKER_URL;
   const key = groqKey();
-  if (!useWorker && !key) return false;
-  const ttsUrl = useWorker
-    ? CONFIG.WORKER_URL.replace(/\/+$/, "") + "/tts"
-    : CONFIG.GROQ_TTS_URL;
-  const candidates = ttsArabicPick ? [ttsArabicPick] : CONFIG.TTS_ARABIC_CANDIDATES;
+  let attempts;
+  if (ttsArabicPick) {
+    attempts = [ttsArabicPick];
+  } else {
+    attempts = [];
+    if (CONFIG.WORKER_URL) {
+      const wUrl = CONFIG.WORKER_URL.replace(/\/+$/, "") + "/tts";
+      CONFIG.TTS_ARABIC_CANDIDATES.forEach(c => attempts.push({ url: wUrl, auth: false, model: c.model, voice: c.voice }));
+    }
+    if (key) {
+      CONFIG.TTS_ARABIC_CANDIDATES.forEach(c => attempts.push({ url: CONFIG.GROQ_TTS_URL, auth: true, model: c.model, voice: c.voice }));
+    }
+  }
+  if (!attempts.length) return false;
   $("topOrb").classList.add("speaking");
-  for (const cand of candidates) {
-    const label = "[ASHRAF TTS] " + cand.model + " / " + cand.voice;
+  for (const cand of attempts) {
+    const label = "[ASHRAF TTS] " + (cand.auth ? "direct" : "worker") + " · " + cand.model + " / " + cand.voice;
     try {
       const headers = { "Content-Type": "application/json" };
-      if (!useWorker) headers["Authorization"] = "Bearer " + key;
-      const res = await fetch(ttsUrl, {
+      if (cand.auth) headers["Authorization"] = "Bearer " + key;
+      const res = await fetch(cand.url, {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
@@ -822,8 +850,7 @@ async function speakCloudArabic(text) {
     } catch (e) {
       // A fetch TypeError with no HTTP status usually means the browser blocked
       // the request (CORS) or the network dropped it.
-      console.error(label + " → no HTTP response (network or CORS): " + (e && e.message) +
-        (useWorker ? "" : " — if this repeats with 'Failed to fetch', the Groq speech endpoint is refusing browser CORS: deploy the Cloudflare Worker (worker.js in the repo) and set CONFIG.WORKER_URL."));
+      console.error(label + " → no HTTP response (network or CORS): " + (e && e.message));
     }
   }
   $("topOrb").classList.remove("speaking");

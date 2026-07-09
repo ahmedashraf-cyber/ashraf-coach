@@ -1,63 +1,59 @@
-# ASHRAF — Cloudflare Worker setup (Groq proxy)
+# ASHRAF — Cloudflare Worker setup (Groq proxy + private knowledge base)
 
-Follow this ONLY if Arabic voice still fails after the model fix, **and** the browser
-console (F12 → Console) shows `no HTTP response (network or CORS)` / `Failed to fetch`
-for `[ASHRAF TTS]` lines. That means Groq's speech endpoint refuses browser requests,
-and the worker below fixes it. It also removes the Groq key from the browser entirely
-(chat goes through it too).
+The worker is now a REQUIRED part of ASHRAF:
+- It holds the **Groq API key** as a secret (no key in the browser anymore).
+- It holds the **private training knowledge base** (Statsbomb spec, app guide,
+  program info) that makes ASHRAF's answers accurate. This knowledge must NOT
+  be committed to this public repo — the deployed worker code comes from the
+  **private file** the Training Manager received (`ashraf-worker-PRIVATE.js`).
+  The `worker.js` in this repo is the same code with the knowledge stripped,
+  kept only for reference.
+
+The app calls the worker at the URL in `CONFIG.WORKER_URL` (index.html). If the
+worker is unreachable, the app falls back to calling Groq directly with the
+locally-stored key (basic answers, no knowledge base).
 
 Takes about 5 minutes, no coding.
 
 ## 1. Create the worker
 
 1. Go to https://dash.cloudflare.com and log in (same account as `hudl-field-email`).
-2. In the left sidebar click **Workers & Pages** → **Create** → **Create Worker**.
-3. Name it `ashraf-coach` and click **Deploy** (it deploys a placeholder first).
-4. Click **Edit code**.
-5. Delete everything in the editor, then copy the ENTIRE contents of `worker.js`
-   from this repo and paste it in.
-6. Click **Deploy** (top right).
+2. Sidebar: **Workers & Pages** → **Create** → **Create Worker**.
+3. Name it exactly: `ashraf-coach`  ← the app expects
+   `https://ashraf-coach.hudl-field.workers.dev`. Click **Deploy**.
+4. Click **Edit code**, delete everything in the editor, and paste the ENTIRE
+   contents of the PRIVATE file you received (`ashraf-worker-PRIVATE.js`).
+5. Click **Deploy** (top right).
 
 ## 2. Add the Groq key as a secret
 
-1. Go back to the worker's page (click its name in Workers & Pages).
-2. Open **Settings** → **Variables and Secrets** → **Add**.
-3. Type: **Secret**. Name: `GROQ_API_KEY` (exactly, all caps).
-   Value: your Groq API key (`gsk_...`). Use a FRESH key from
-   https://console.groq.com — rotate the old one, it was shared in chat.
-4. Click **Deploy** / **Save**.
+1. Open the worker's page → **Settings** → **Variables and Secrets** → **Add**.
+2. Type: **Secret**. Name: `GROQ_API_KEY` (exactly, all caps).
+   Value: a FRESH Groq key from https://console.groq.com (rotate the old one).
+3. Save / Deploy.
 
-## 3. Point the app at the worker
-
-1. In `index.html`, find `WORKER_URL: ""` inside the `CONFIG` object near the top
-   of the `<script>` block.
-2. Set it to your worker URL, for example:
-   `WORKER_URL: "https://ashraf-coach.hudl-field.workers.dev",`
-   (No trailing slash needed; the app handles it either way.)
-3. Commit + push, wait for GitHub Pages to go green, then hard-refresh
-   (Ctrl+Shift+R) the live site.
-
-Once `WORKER_URL` is set, the app stops sending the Groq key from the browser —
-you can clear it from localStorage by opening the site with `#setup` and saving
-an empty key.
-
-## 4. Quick test
-
-In a terminal (or ask any developer):
+## 3. Test
 
 ```bash
-# Should return JSON with a chat reply:
+# Chat — should answer as ASHRAF using the knowledge base:
 curl -sS https://ashraf-coach.hudl-field.workers.dev/chat \
   -H "Content-Type: application/json" \
-  -d '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"say hi"}]}'
+  -d '{"messages":[{"role":"user","content":"يعني ايه ground pass؟"}]}'
 
-# Should save playable Arabic audio:
+# Arabic TTS — should save playable audio:
 curl -sS https://ashraf-coach.hudl-field.workers.dev/tts \
   -H "Content-Type: application/json" \
   -d '{"model":"canopylabs/orpheus-arabic-saudi","voice":"abdullah","input":"أهلاً بيك في التدريب","response_format":"wav"}' \
   -o test.wav && file test.wav
 ```
 
-If `/tts` returns a JSON error instead of audio, the `detail` field contains
-Groq's real error message (wrong model name, terms not accepted, etc.) — fix the
-model/voice in `CONFIG.TTS_ARABIC_CANDIDATES` in `index.html` accordingly.
+## 4. After it works — clean the browser key (optional but recommended)
+
+Open the live app with `#setup` at the end of the URL and save an EMPTY key.
+The app then relies fully on the worker; the Groq key no longer exists anywhere
+in the browser.
+
+## Updating the knowledge later
+
+Ask the assistant to regenerate `ashraf-worker-PRIVATE.js` with the new
+material, then repeat step 1.4 (paste + Deploy). Nothing else changes.
