@@ -430,11 +430,12 @@ const CONFIG = {
   WORKER_URL: "",
   // Arabic TTS model/voice pairs, tried in order until one returns audio.
   // Failures are logged to the console with the real HTTP status + body.
+  // NOTE: the model requires one-time terms acceptance by the Groq org admin:
+  //   https://console.groq.com/playground?model=canopylabs%2Forpheus-arabic-saudi
+  // (playai-tts-arabic was removed — decommissioned by Groq, always returns 400.)
   TTS_ARABIC_CANDIDATES: [
     { model: "canopylabs/orpheus-arabic-saudi", voice: "abdullah" },
-    { model: "canopylabs/orpheus-arabic-saudi", voice: "aisha" },
-    { model: "playai-tts-arabic", voice: "Ahmad-PlayAI" },
-    { model: "playai-tts-arabic", voice: "Amira-PlayAI" }
+    { model: "canopylabs/orpheus-arabic-saudi", voice: "aisha" }
   ],
   // Valid batch codes — edit this list per active Tornado Batch.
   BATCH_CODES: ["TORNADO-01", "TORNADO-02", "TORNADO-03", "TORNADO-TEST"],
@@ -804,6 +805,9 @@ async function speakCloudArabic(text) {
         let body = "";
         try { body = await res.text(); } catch (re) { body = "(unreadable body)"; }
         console.error(label + " → HTTP " + res.status + " — " + body.slice(0, 300));
+        if (body.indexOf("model_terms_required") !== -1) {
+          console.error("[ASHRAF TTS] ONE-TIME FIX: the Groq org admin must accept this model's terms at https://console.groq.com/playground?model=" + encodeURIComponent(cand.model) + " — then reload this page.");
+        }
         continue;
       }
       const blob = await res.blob();
