@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ASHRAF · AI Training Coach</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="%23E8590C"/><g fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(1.2 1.2) scale(0.9)"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></g></svg>'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Cairo:wght@400;500;600&display=swap" rel="stylesheet">
@@ -336,7 +337,7 @@ input, textarea { font-family:'DM Sans',sans-serif; }
   <div class="gate-bg"></div>
   <div class="gate-card">
     <div class="gate-orb">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.2 4.3-2.6 5.6-.9.8-1.4 1.5-1.4 2.4v1h-6v-1c0-.9-.5-1.6-1.4-2.4C6.2 13.3 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></svg>
     </div>
     <h1 class="gate-title">ASHRAF</h1>
     <div class="gate-sub">AI Training Coach · Tornado Batches · Hudl Egypt</div>
@@ -358,7 +359,7 @@ input, textarea { font-family:'DM Sans',sans-serif; }
 <div class="screen" id="chatScreen">
   <div class="topbar">
     <div class="top-orb" id="topOrb">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.2 4.3-2.6 5.6-.9.8-1.4 1.5-1.4 2.4v1h-6v-1c0-.9-.5-1.6-1.4-2.4C6.2 13.3 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></svg>
     </div>
     <div class="top-id">
       <div class="top-name">ASHRAF</div>
@@ -559,7 +560,7 @@ function addBubble(role, text, t, animate) {
   const av = document.createElement("div");
   av.className = "avatar " + (role === "user" ? "user" : "ai");
   if (role === "user") av.textContent = initials(session.name);
-  else av.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.2 4.3-2.6 5.6-.9.8-1.4 1.5-1.4 2.4v1h-6v-1c0-.9-.5-1.6-1.4-2.4C6.2 13.3 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>';
+  else av.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></svg>';
 
   const wrap = document.createElement("div");
   wrap.style.maxWidth = "78%";
@@ -591,7 +592,7 @@ function addBubble(role, text, t, animate) {
 function addError(text) {
   const row = document.createElement("div");
   row.className = "row ai";
-  row.innerHTML = '<div class="avatar ai"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.2 4.3-2.6 5.6-.9.8-1.4 1.5-1.4 2.4v1h-6v-1c0-.9-.5-1.6-1.4-2.4C6.2 13.3 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg></div>';
+  row.innerHTML = '<div class="avatar ai"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></svg></div>';
   const b = document.createElement("div");
   b.className = "bubble err";
   b.textContent = text;
@@ -604,7 +605,7 @@ let typingRow = null;
 function showTyping() {
   typingRow = document.createElement("div");
   typingRow.className = "row ai";
-  typingRow.innerHTML = '<div class="avatar ai"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.2 4.3-2.6 5.6-.9.8-1.4 1.5-1.4 2.4v1h-6v-1c0-.9-.5-1.6-1.4-2.4C6.2 13.3 5 11.5 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg></div><div class="bubble" style="padding:0"><div class="typing"><span></span><span></span><span></span></div></div>';
+  typingRow.innerHTML = '<div class="avatar ai"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="14.5" r="5"/><path d="M11 9.8h8.5a1.5 1.5 0 0 1 1.5 1.5v1.4l-6.8 1.7"/><path d="M14.5 9.8v2.4"/></svg></div><div class="bubble" style="padding:0"><div class="typing"><span></span><span></span><span></span></div></div>';
   $("msgsInner").appendChild(typingRow);
   scrollBottom();
 }
