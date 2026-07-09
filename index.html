@@ -713,10 +713,32 @@ if ("speechSynthesis" in window) {
 }
 function pickVoice(arabic) {
   if (!voices.length) loadVoices();
-  const want = arabic ? "ar" : "en";
-  let v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith(want) && /google|natural|online/i.test(x.name));
-  if (!v) v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith(want));
-  return v || null;
+  const lc = x => (x.lang || "").toLowerCase().replace("_","-");
+  if (arabic) {
+    return voices.find(x => lc(x).startsWith("ar-eg") && /natural|online/i.test(x.name))
+        || voices.find(x => lc(x).startsWith("ar-eg"))
+        || voices.find(x => lc(x).startsWith("ar") && /natural|online|google/i.test(x.name))
+        || voices.find(x => lc(x).startsWith("ar"))
+        || null;
+  }
+  return voices.find(x => lc(x).startsWith("en") && /natural|online|google/i.test(x.name))
+      || voices.find(x => lc(x).startsWith("en"))
+      || null;
+}
+/* Split mixed text into Arabic / non-Arabic segments so each gets the right voice */
+function splitSegments(text) {
+  const parts = [];
+  let cur = "", curAr = null;
+  const tokens = text.split(/(\s+)/);
+  for (const tok of tokens) {
+    if (!tok.trim()) { cur += tok; continue; }
+    const ar = /[\u0600-\u06FF]/.test(tok);
+    if (curAr === null) { curAr = ar; cur += tok; }
+    else if (ar === curAr) { cur += tok; }
+    else { if (cur.trim()) parts.push({ text: cur.trim(), ar: curAr }); cur = tok; curAr = ar; }
+  }
+  if (cur.trim()) parts.push({ text: cur.trim(), ar: curAr });
+  return parts;
 }
 function cleanForSpeech(s) {
   return s
@@ -727,21 +749,32 @@ function cleanForSpeech(s) {
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/\s+/g, " ").trim();
 }
+let warnedNoArVoice = false;
 function speak(text) {
   if (!("speechSynthesis" in window)) return;
   stopSpeaking();
   const clean = cleanForSpeech(text);
   if (!clean) return;
-  const u = new SpeechSynthesisUtterance(clean);
-  const ar = isArabic(clean);
-  u.lang = ar ? "ar-EG" : "en-US";
-  const v = pickVoice(ar);
-  if (v) u.voice = v;
-  u.rate = 1.0; u.pitch = 1.0;
-  u.onstart = () => $("topOrb").classList.add("speaking");
-  u.onend = () => $("topOrb").classList.remove("speaking");
-  u.onerror = () => $("topOrb").classList.remove("speaking");
-  speechSynthesis.speak(u);
+  const segs = splitSegments(clean);
+  if (!segs.length) return;
+  const needsAr = segs.some(s => s.ar);
+  if (needsAr && !pickVoice(true) && !warnedNoArVoice) {
+    warnedNoArVoice = true;
+    addError("هذا المتصفح لا يحتوي على صوت عربي — This browser has no Arabic voice installed. For Arabic speech, open ASHRAF in Microsoft Edge, or install the Arabic language pack in Windows/phone settings.");
+  }
+  segs.forEach((seg, i) => {
+    const u = new SpeechSynthesisUtterance(seg.text);
+    u.lang = seg.ar ? "ar-EG" : "en-US";
+    const v = pickVoice(seg.ar);
+    if (v) u.voice = v;
+    u.rate = 1.0; u.pitch = 1.0;
+    if (i === 0) u.onstart = () => $("topOrb").classList.add("speaking");
+    if (i === segs.length - 1) {
+      u.onend = () => $("topOrb").classList.remove("speaking");
+      u.onerror = () => $("topOrb").classList.remove("speaking");
+    }
+    speechSynthesis.speak(u);
+  });
 }
 function stopSpeaking() {
   if ("speechSynthesis" in window) speechSynthesis.cancel();
